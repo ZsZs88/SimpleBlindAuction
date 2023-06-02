@@ -22,6 +22,8 @@
   "homepage": "https://github.com/ZsZs88/SimpleBlindAuction#readme",
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.0",
+    "@openzeppelin/test-helpers": "^0.5.16",
+    "solidity-docgen": "^0.6.0-beta.35",
     "truffle": "^5.9.2"
   }
 }

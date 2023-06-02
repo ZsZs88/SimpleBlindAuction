@@ -1,6 +1,0 @@
-export const addresses = {
-	auction: "0x110",
-	seller: "0x120",
-	bidders: ["0x130", "0x131", "0x132", "0x132"],
-	token: "0x140",
-};

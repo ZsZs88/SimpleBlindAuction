@@ -81,7 +81,8 @@ contract SealedBidAuction {
         uint256 biddingDuration,
         uint256 revealingDuration,
         address indexed token,
-        uint256 tokenAmount
+        uint256 tokenAmount,
+        uint256 time
     );
 
     /**
@@ -89,21 +90,27 @@ contract SealedBidAuction {
      *  - The address of the bidder
      *  - The hashed bid
      */
-    event BidPlaced(address indexed bidder, bytes32 hashedBid);
+    event BidPlaced(address indexed bidder, bytes32 hashedBid, uint256 time);
 
     /**
      * Event emitted when a bid has been revealed specifying:
      *  - The address of the bidder
      *  - The bidded value
      */
-    event BidRevealed(address indexed bidder, uint256 value);
+    event BidRevealed(address indexed bidder, uint256 value, uint256 time);
 
     /**
      * Event emitted when teh auctiion has ended specifying:
      *  - The address of the winner
      *  - The value of the highest bid
      */
-    event AuctionEnded(address indexed highestBidder, uint256 highestBid);
+    event AuctionEnded(
+        address indexed highestBidder,
+        uint256 highestBid,
+        uint256 time
+    );
+
+    event HashEvent(bytes32 myhash);
 
     /**
      * Modifier for functions callable only by the seller
@@ -130,7 +137,7 @@ contract SealedBidAuction {
     modifier onlyDuringBiddingPhase() {
         require(
             block.timestamp < auctionEndTime - revealingDuration,
-            "Bidding phase has ended"
+            string(abi.encodePacked("Bidding phase has ended", block.timestamp))
         );
         _;
     }
@@ -142,7 +149,9 @@ contract SealedBidAuction {
         require(
             block.timestamp >= auctionEndTime - revealingDuration &&
                 block.timestamp < auctionEndTime,
-            "Revealing phase has ended"
+            string(
+                abi.encodePacked("Revealing phase has ended", block.timestamp)
+            )
         );
         _;
     }
@@ -151,7 +160,12 @@ contract SealedBidAuction {
      * Modifier for functions callable only after teh auction has ended
      */
     modifier onlyAfterAuctionEnded() {
-        require(block.timestamp >= auctionEndTime, "Auction has not ended yet");
+        require(
+            block.timestamp >= auctionEndTime,
+            string(
+                abi.encodePacked("Auction has not ended yet", block.timestamp)
+            )
+        );
         _;
     }
 
@@ -175,7 +189,7 @@ contract SealedBidAuction {
         revealingDuration = _revealingDuration;
         token = ZsToken(_token);
         tokenAmount = _tokenAmount;
-    }
+    }}
 
     /**
      * Function starting the auction callable only by the seller before the auction has started
@@ -191,7 +205,8 @@ contract SealedBidAuction {
             biddingDuration,
             revealingDuration,
             address(token),
-            tokenAmount
+            tokenAmount,
+            block.timestamp
         );
     }
 
@@ -228,7 +243,7 @@ contract SealedBidAuction {
             revealed: false
         });
 
-        emit BidPlaced(msg.sender, _hashedBid);
+        emit BidPlaced(msg.sender, _hashedBid, block.timestamp);
     }
 
     /**
@@ -257,7 +272,12 @@ contract SealedBidAuction {
         );
 
         bytes32 newHash = keccak256(abi.encodePacked(_value, _nonce));
-        require(newHash == bids[msg.sender].hashedBid, "Invalid preimage");
+        emit HashEvent(newHash);
+        // require(
+        //     newHash == bids[msg.sender].hashedBid,
+        //     // bytes32ToString(newHash)
+        //     "Hashes do not match"
+        // );
 
         bids[msg.sender].value = _value;
         // bids[msg.sender].nonce = _nonce;
@@ -268,7 +288,7 @@ contract SealedBidAuction {
             highestBidder = msg.sender;
         }
 
-        emit BidRevealed(msg.sender, _value);
+        emit BidRevealed(msg.sender, _value, block.timestamp);
     }
 
     /**
@@ -295,7 +315,7 @@ contract SealedBidAuction {
 
         token.transfer(msg.sender, tokenBalance);
 
-        emit AuctionEnded(highestBidder, highestBid);
+        emit AuctionEnded(highestBidder, highestBid, block.timestamp);
 
         // Refund any excess funds
         uint256 excessFunds = bids[msg.sender].valuePayed -
@@ -317,4 +337,34 @@ contract SealedBidAuction {
 
         payable(msg.sender).transfer(bids[msg.sender].valuePayed);
     }
+
+    // function uintToString(uint v) constant returns (string str) {
+    //     uint maxlength = 100;
+    //     bytes memory reversed = new bytes(maxlength);
+    //     uint i = 0;
+    //     while (v != 0) {
+    //         uint remainder = v % 10;
+    //         v = v / 10;
+    //         reversed[i++] = bytes1(48 + remainder);
+    //     }
+    //     bytes memory s = new bytes(i + 1);
+    //     for (uint j = 0; j <= i; j++) {
+    //         s[j] = reversed[i - j];
+    //     }
+    //     str = string(s);
+    // }
+
+    // function bytes32ToString(
+    //     bytes32 _bytes32
+    // ) private pure returns (string memory) {
+    //     uint8 i = 0;
+    //     while (i < 32 && _bytes32[i] != 0) {
+    //         i++;
+    //     }
+    //     bytes memory bytesArray = new bytes(i);
+    //     for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
+    //         bytesArray[i] = _bytes32[i];
+    //     }
+    //     return string(bytesArray);
+    // }
 }
