@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
+import "./ZsToken.sol";
 
 contract SealedBidAuction {
     /**
@@ -40,11 +40,14 @@ contract SealedBidAuction {
     uint256 public auctionEndTime;
 
     /**
-     * The token in auction
+     * The address of the token in auction
      */
-    IERC20 public token;
+    ZsToken public token;
 
-    //TODO: tokenBalance
+    /**
+     * Amount of tokens the seller is offering
+     */
+    uint256 public tokenAmount;
 
     /**
      * Data structure for the bids specifying:
@@ -72,13 +75,13 @@ contract SealedBidAuction {
      *  - Duration of the revealing phase
      *  - Address of the ERC20 tokens smart contract
      */
-    //TODO: tokenBalance
     event AuctionStarted(
         address indexed seller,
         uint256 reservePrice,
         uint256 biddingDuration,
         uint256 revealingDuration,
-        address indexed token
+        address indexed token,
+        uint256 tokenAmount
     );
 
     /**
@@ -118,6 +121,7 @@ contract SealedBidAuction {
      */
     modifier onlyBeforeAuctionStarted() {
         require(auctionEndTime == 0, "Auction has already started");
+        _;
     }
 
     /**
@@ -148,6 +152,7 @@ contract SealedBidAuction {
      */
     modifier onlyAfterAuctionEnded() {
         require(block.timestamp >= auctionEndTime, "Auction has not ended yet");
+        _;
     }
 
     /**
@@ -161,14 +166,15 @@ contract SealedBidAuction {
         address _token,
         uint256 _reservePrice,
         uint256 _biddingDuration,
-        uint256 _revealingDuration //TODO: tokenBalance
+        uint256 _revealingDuration,
+        uint256 _tokenAmount
     ) {
         seller = msg.sender;
         reservePrice = _reservePrice;
         biddingDuration = _biddingDuration;
         revealingDuration = _revealingDuration;
-        //TODO ez fixen nem jó, meg kell írni az ERC20 cuccot
-        token = IERC20(_token);
+        token = ZsToken(_token);
+        tokenAmount = _tokenAmount;
     }
 
     /**
@@ -176,15 +182,16 @@ contract SealedBidAuction {
      *
      * Emits Auctionstarted event
      */
-    //TODO: check tokenBalance
     function startAuction() public onlySeller onlyBeforeAuctionStarted {
+        require(tokenAmount <= getTokenBalance());
         auctionEndTime = block.timestamp + biddingDuration + revealingDuration;
         emit AuctionStarted(
             seller,
             reservePrice,
             biddingDuration,
             revealingDuration,
-            address(token)
+            address(token),
+            tokenAmount
         );
     }
 
@@ -216,6 +223,7 @@ contract SealedBidAuction {
         bids[msg.sender] = Bid({
             hashedBid: _hashedBid,
             // nonce: 0,
+            value: 0,
             valuePayed: msg.value,
             revealed: false
         });
@@ -283,7 +291,6 @@ contract SealedBidAuction {
         );
 
         uint256 tokenBalance = token.balanceOf(address(this));
-        //TODO: do we need this?
         require(tokenBalance > 0, "Tokens already claimed");
 
         token.transfer(msg.sender, tokenBalance);
