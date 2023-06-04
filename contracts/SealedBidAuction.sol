@@ -52,13 +52,13 @@ contract SealedBidAuction {
     /**
      * Data structure for the bids specifying:
      *  - The hashed form of the bid, submitted in the bidding stage
-     *  - The value payed by the bidder in the bidding stage
-     *  - The value actually bidded by the bidder in the revelation stage
+     *  - The value paid by the bidder in the bidding stage
+     *  - The value actually bid by the bidder in the revealing stage
      *  - A bool variable representing the state of the bid
      */
     struct Bid {
         bytes32 hashedBid;
-        uint256 valuePayed;
+        uint256 valuePaid;
         uint256 value;
         bool revealed;
     }
@@ -74,6 +74,7 @@ contract SealedBidAuction {
      *  - Duration of the bidding phase
      *  - Duration of the revealing phase
      *  - Address of the ERC20 tokens smart contract
+     *  - The block.timestamp when the event has happened
      */
     event AuctionStarted(
         address indexed seller,
@@ -89,13 +90,15 @@ contract SealedBidAuction {
      * Event emitted when a bid has been placed specifying:
      *  - The address of the bidder
      *  - The hashed bid
+     *  - The block.timestamp when the event has happened
      */
     event BidPlaced(address indexed bidder, bytes32 hashedBid, uint256 time);
 
     /**
      * Event emitted when a bid has been revealed specifying:
      *  - The address of the bidder
-     *  - The bidded value
+     *  - The bid value
+     *  - The block.timestamp when the event has happened
      */
     event BidRevealed(address indexed bidder, uint256 value, uint256 time);
 
@@ -103,14 +106,13 @@ contract SealedBidAuction {
      * Event emitted when teh auctiion has ended specifying:
      *  - The address of the winner
      *  - The value of the highest bid
+     *  - The block.timestamp when the event has happened
      */
     event AuctionEnded(
         address indexed highestBidder,
         uint256 highestBid,
         uint256 time
     );
-
-    event HashEvent(bytes32 myhash);
 
     /**
      * Modifier for functions callable only by the seller
@@ -157,7 +159,7 @@ contract SealedBidAuction {
     }
 
     /**
-     * Modifier for functions callable only after teh auction has ended
+     * Modifier for functions callable only after the auction has ended
      */
     modifier onlyAfterAuctionEnded() {
         require(
@@ -175,6 +177,7 @@ contract SealedBidAuction {
      *  - The minimum price of the token in auction
      *  - Duration of the bidding phase
      *  - Duration of the revealing phase
+     *  - The amount of tokens in auction
      */
     constructor(
         address _token,
@@ -197,7 +200,10 @@ contract SealedBidAuction {
      * Emits Auctionstarted event
      */
     function startAuction() public onlySeller onlyBeforeAuctionStarted {
-        require(tokenAmount <= getTokenBalance());
+        require(
+            tokenAmount <= getTokenBalance(),
+            "Not enough tokens to start the auction"
+        );
         auctionEndTime = block.timestamp + biddingDuration + revealingDuration;
         emit AuctionStarted(
             seller,
@@ -213,13 +219,12 @@ contract SealedBidAuction {
     /**
      * Funcion callable by the bidders to place their bids during the bidding phase
      * _hashedBid has to be the bidders bid and their nonce hashed by the keccak256 algorithm
-     //TODO
-     * It is recommended for the transfered value to be bigger than the exact value of the bid to hide reserving the secrecy of the auction
+     * It is recommended for the transferred value to be bigger than the exact value of the bid to hide reserving the secrecy of the auction
      *
      * A bidder can only place one bid
-     * The payed value has to be greater than or equal to the reservePrice
+     * The paid value has to be greater than or equal to the reservePrice
      *
-     * The Bid added to the mapping will have the hashedBid specified as parameter, and the valuePayed specified by the transfered value
+     * The Bid added to the mapping will have the hashedBid specified as parameter, and the valuePaid specified by the transferred value
      *
      * Emits BidPlaced event
      */
@@ -239,7 +244,7 @@ contract SealedBidAuction {
             hashedBid: _hashedBid,
             // nonce: 0,
             value: 0,
-            valuePayed: msg.value,
+            valuePaid: msg.value,
             revealed: false
         });
 
@@ -251,7 +256,7 @@ contract SealedBidAuction {
      * _value is the exact value of the bid
      * _nonce is the exact nonce of the bid
      *
-     * valuePayed earlier has to be greater than or equal to the exact value of the bid
+     * valuePaid earlier has to be greater than or equal to the exact value of the bid
      * The value of the bid is specified as parameter
      * The bids state changes to reaveled
      *
@@ -267,7 +272,7 @@ contract SealedBidAuction {
         );
         require(!bids[msg.sender].revealed, "Bid has already been revealed");
         require(
-            bids[msg.sender].valuePayed >= _value,
+            bids[msg.sender].valuePaid >= _value,
             "The bids value is not payable from balance placed"
         );
 
@@ -313,7 +318,7 @@ contract SealedBidAuction {
         emit AuctionEnded(highestBidder, highestBid, block.timestamp);
 
         // Refund any excess funds
-        uint256 excessFunds = bids[msg.sender].valuePayed -
+        uint256 excessFunds = bids[msg.sender].valuePaid -
             bids[msg.sender].value;
         if (excessFunds > 0) {
             payable(msg.sender).transfer(excessFunds);
@@ -322,7 +327,7 @@ contract SealedBidAuction {
 
     /**
      * Function callable by the losing bidders
-     * Transfers the payed value of the losing bidders back to them
+     * Transfers the paid value of the losing bidders back to them
      */
     function withdrawExcessFunds() public onlyAfterAuctionEnded {
         require(
@@ -330,6 +335,6 @@ contract SealedBidAuction {
             "The highest bidder cannot withdraw excess funds"
         );
 
-        payable(msg.sender).transfer(bids[msg.sender].valuePayed);
+        payable(msg.sender).transfer(bids[msg.sender].valuePaid);
     }
 }

@@ -5,13 +5,6 @@ let Web3 = require("web3");
 let provider = new Web3.providers.HttpProvider("http://127.0.0.1:8484");
 let web3 = new Web3(provider);
 
-let chai = require("chai");
-let chaiAsPromised = require("chai-as-promised");
-let { expect } = chai;
-
-// Enable the chai-as-promised plugin
-chai.use(chaiAsPromised);
-
 const {
 	BN,
 	ether,
@@ -21,24 +14,22 @@ const {
 	time,
 } = require("@openzeppelin/test-helpers");
 
-// let getTime = (anything) => {
-// 	web3.eth
-// 		.getBlockNumber()
-// 		.then((blockNumber) => {
-// 			// Get the block information for the latest block
-// 			web3.eth.getBlock(blockNumber).then((block) => {
-// 				// Access the block timestamp
-// 				const timestamp = block.timestamp;
-// 				console.log("Block timestamp: ", timestamp, " - ", anything);
-// 			});
-// 		})
-// 		.catch((error) => {
-// 			console.error("Error:", error);
-// 		});
-// };
-
+/**
+ * The test for the smart contract SealedBidAuction
+ */
 contract("SealedBidAuction", (accounts) => {
+	/**
+	 * Address of the seller account
+	 */
 	var sellerAddress = accounts[0];
+
+	/**
+	 * Bidder accounts for testing specifying:
+	 * 	- The bidders address
+	 * 	- The bids value
+	 * 	- The bids nonce
+	 *  - The bids keccak256 hash
+	 */
 	var bidderAddresses = [
 		{
 			address: accounts[1],
@@ -73,7 +64,7 @@ contract("SealedBidAuction", (accounts) => {
 			},
 		},
 		{
-			//badbidder
+			//This bidder is added with a bad hash and a too high bid value for testing purposes
 			address: accounts[5],
 			bid: {
 				value: 250,
@@ -83,11 +74,34 @@ contract("SealedBidAuction", (accounts) => {
 		},
 	];
 
+	/**
+	 * The token contract deployed
+	 * Defined in beforeEach
+	 */
+
 	var token;
+	/**
+	 * The address of the token contract deployed
+	 * Defined in beforeEach
+	 */
 	var tokenAddress;
+
+	/**
+	 * The auction contract deployed
+	 * Defined in beforeEach
+	 */
 	var auction;
+
+	/**
+	 * The address of the auction contract deployed
+	 * Defined in beforeEach
+	 */
 	var auctionAddress;
 
+	/**
+	 * Definition of variables required for testing
+	 * Running before every testcase avoiding problems with asynchronous functions
+	 */
 	beforeEach(async () => {
 		token = await ZsToken.deployed();
 		tokenAddress = token.address;
@@ -95,6 +109,9 @@ contract("SealedBidAuction", (accounts) => {
 		auctionAddress = auction.address;
 	});
 
+	/**
+	 * Checking the initial token balances of the seller and the auction contract
+	 */
 	it("Check initiialization", async () => {
 		let sellerBalance = await token.balanceOf(sellerAddress);
 		let auctionBalance = await token.balanceOf(auctionAddress);
@@ -103,6 +120,23 @@ contract("SealedBidAuction", (accounts) => {
 		assert.equal(auctionBalance, 0, "Auction has balance");
 	});
 
+	/**
+	 * Expecting an error if the auction contract has not yet received the expected amount of tokens
+	 */
+	it("Check for error thrown if the contract has not enough tokens to start the auction", async () => {
+		try {
+			await auction.startAuction({ from: sellerAddress });
+		} catch (error) {
+			assert(
+				error.message.includes("revert"),
+				"Not enough tokens to start the auction"
+			);
+		}
+	});
+
+	/**
+	 * Checking the token balances of the seller and the auction after the transfer
+	 */
 	it("Check state after tokentransfer", async () => {
 		await token.transfer(auctionAddress, 1000, { from: sellerAddress });
 
@@ -113,6 +147,9 @@ contract("SealedBidAuction", (accounts) => {
 		assert.equal(auctionBalance, 1000, "Not good amount of tokens");
 	});
 
+	/**
+	 * Expecting an error if someone other than the seller tries to start the auction
+	 */
 	it("Check for error thrown if someone tries to start the auction who is not the seller", async () => {
 		try {
 			await auction.startAuction({ from: accounts[6] });
@@ -124,6 +161,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if a bids value is less than the minimum price
+	 */
 	it("Check for error thrown if value is less than reservePrice", async () => {
 		await auction.startAuction({ from: sellerAddress });
 
@@ -144,6 +184,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if the seller tries to restart the auction
+	 */
 	it("Check for error thrown if seller tries to start the auction again", async () => {
 		try {
 			await auction.startAuction({ from: sellerAddress });
@@ -152,6 +195,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Checking the balance of the auction after the bids have been placed
+	 */
 	it("Check state after bids were placed", async () => {
 		for (let bidderAddress of bidderAddresses) {
 			await auction.placeBid(bidderAddress["bid"]["hash"], {
@@ -167,6 +213,9 @@ contract("SealedBidAuction", (accounts) => {
 		);
 	});
 
+	/**
+	 * Expecting an error if a bidder tries to "rebid"
+	 */
 	it("Check for error thrown if bidder has already placed a bid", async () => {
 		try {
 			await auction.placeBid(bidderAddresses[0]["bid"]["hash"], {
@@ -181,6 +230,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if a bidder tries to bid after the bidding phase has ended
+	 */
 	it("Check for error thrown if bidding phase has ended", async () => {
 		//To increase time
 		await time.increase(120);
@@ -196,6 +248,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if a bidders hash does not match the hashed result of their bid value and nonce
+	 */
 	it("Check for error thrown for bad hash", async () => {
 		try {
 			await auction.revealBid(600, bidderAddresses[0]["bid"]["nonce"], {
@@ -206,6 +261,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if a bidder tries to reveal their bid without submitting a hash in the bidding phase
+	 */
 	it("Check for error thrown if bidder has not placed a bid", async () => {
 		try {
 			await auction.revealBid(200, 0xffff, {
@@ -216,6 +274,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if the bids value is larger than the value paid by the bidder in the bidding phase
+	 */
 	it("Check for error thrown if bidder has not deposited enough for paying their bid", async () => {
 		try {
 			await auction.revealBid(
@@ -233,6 +294,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Checking for the winner and the winning bid after all the bids were revealed
+	 */
 	it("Check state after bids were revealed", async () => {
 		for (let bidderAddress of bidderAddresses.slice(0, 4)) {
 			await auction.revealBid(
@@ -251,6 +315,9 @@ contract("SealedBidAuction", (accounts) => {
 		assert.equal(winner, accounts[4], "Not expected winner");
 	});
 
+	/**
+	 * Expecting an error if a bidder tries to "rereveal"
+	 */
 	it("Check for error thrown if bid has already been revealed", async () => {
 		try {
 			await auction.revealBid(
@@ -265,8 +332,12 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if the winner tries to claim his token before the auction has ended
+	 */
 	it("Check for error thrown for claiming the token before auction end", async () => {
 		let winner = await auction.highestBidder();
+
 		try {
 			await auction.claimToken({ from: winner });
 		} catch (error) {
@@ -274,6 +345,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if a bidder tries to reveal his bid after the revealing phase has ended
+	 */
 	it("Check for error thrown if revealing phase already ended", async () => {
 		//To increase time
 		await time.increase(80);
@@ -292,6 +366,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if someone other than the winner tries to claim the tokenss
+	 */
 	it("Check for error thrown if token claim is not from winner", async () => {
 		try {
 			await auction.claimToken({
@@ -305,6 +382,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Expecting an error if the winner tries to withdraw his funds
+	 */
 	it("Check for error thrown if winner wants to withdraw", async () => {
 		let winner = await auction.highestBidder();
 		try {
@@ -317,6 +397,9 @@ contract("SealedBidAuction", (accounts) => {
 		}
 	});
 
+	/**
+	 * Checking the balance of the auction contract after the losing bidder have withdrawned their funds
+	 */
 	it("Check results of withdraws", async () => {
 		let winner = await auction.highestBidder();
 
@@ -332,7 +415,10 @@ contract("SealedBidAuction", (accounts) => {
 		);
 	});
 
-	it("Check results of withdraws", async () => {
+	/**
+	 * Check the token balances of the winner and the auction and checking the balance of the auction after the winner has claimed his tokens and excess funds
+	 */
+	it("Check results of claim", async () => {
 		let winner = await auction.highestBidder();
 
 		await auction.claimToken({ from: winner });
@@ -343,14 +429,21 @@ contract("SealedBidAuction", (accounts) => {
 			"Auctions balance is not as expected"
 		);
 
-		assert(token.balanceOf(winner), 1000, "Winner did not get the tokens");
-		assert(
-			token.balanceOf(auctionAddress),
+		assert.equal(
+			await token.balanceOf(winner),
+			1000,
+			"Winner did not get the tokens"
+		);
+		assert.equal(
+			await token.balanceOf(auctionAddress),
 			0,
 			"Auction did not transfer the tokens"
 		);
 	});
 
+	/**
+	 * Expecting an error if the winner tries to "reclaim"
+	 */
 	it("Check for error thrown if winner tries to claim tokens again", async () => {
 		let winner = await auction.highestBidder();
 		try {
