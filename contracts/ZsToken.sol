@@ -11,7 +11,7 @@ contract ZsToken is ERC20 {
         _mint(msg.sender, initialSupply);
     }
 
-    function addMore(uint256 supply) public {
-        _mint(msg.sender, supply);
-    }
+    // function addMore(uint256 supply) public {
+    //     _mint(msg.sender, supply);
+    // }
 }

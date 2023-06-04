@@ -1,3 +1,6 @@
 node_modules
 build
-docgenerator.js
+docify.js
+cli.js
+docgen
+.gitbook.yaml

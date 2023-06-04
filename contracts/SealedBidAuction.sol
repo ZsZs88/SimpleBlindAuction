@@ -189,7 +189,7 @@ contract SealedBidAuction {
         revealingDuration = _revealingDuration;
         token = ZsToken(_token);
         tokenAmount = _tokenAmount;
-    }}
+    }
 
     /**
      * Function starting the auction callable only by the seller before the auction has started
@@ -272,12 +272,7 @@ contract SealedBidAuction {
         );
 
         bytes32 newHash = keccak256(abi.encodePacked(_value, _nonce));
-        emit HashEvent(newHash);
-        // require(
-        //     newHash == bids[msg.sender].hashedBid,
-        //     // bytes32ToString(newHash)
-        //     "Hashes do not match"
-        // );
+        require(newHash == bids[msg.sender].hashedBid, "Hashes do not match");
 
         bids[msg.sender].value = _value;
         // bids[msg.sender].nonce = _nonce;
@@ -337,34 +332,4 @@ contract SealedBidAuction {
 
         payable(msg.sender).transfer(bids[msg.sender].valuePayed);
     }
-
-    // function uintToString(uint v) constant returns (string str) {
-    //     uint maxlength = 100;
-    //     bytes memory reversed = new bytes(maxlength);
-    //     uint i = 0;
-    //     while (v != 0) {
-    //         uint remainder = v % 10;
-    //         v = v / 10;
-    //         reversed[i++] = bytes1(48 + remainder);
-    //     }
-    //     bytes memory s = new bytes(i + 1);
-    //     for (uint j = 0; j <= i; j++) {
-    //         s[j] = reversed[i - j];
-    //     }
-    //     str = string(s);
-    // }
-
-    // function bytes32ToString(
-    //     bytes32 _bytes32
-    // ) private pure returns (string memory) {
-    //     uint8 i = 0;
-    //     while (i < 32 && _bytes32[i] != 0) {
-    //         i++;
-    //     }
-    //     bytes memory bytesArray = new bytes(i);
-    //     for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
-    //         bytesArray[i] = _bytes32[i];
-    //     }
-    //     return string(bytesArray);
-    // }
 }
