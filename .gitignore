@@ -4,3 +4,4 @@ docify.js
 cli.js
 docgen
 .gitbook.yaml
+*.zip
