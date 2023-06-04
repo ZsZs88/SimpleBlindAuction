@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test-ps": "$GANACHE=ganache-cli -i=8484 -D -p 8484; truffle test; ganache instances stop $GANACHE; Remove-Variable GANACHE",
+    "test-ps": "@powershell -NoProfile -ExecutionPolicy Unrestricted -Command $GANACHE=ganache-cli -i=8484 -D -p 8484; truffle test; ganache instances stop $GANACHE; Remove-Variable GANACHE",
     "test-linux": "GANACHE=$(ganache-cli -i=8484 -D -p 8484) && truffle test; ganache-cli instances stop $GANACHE",
     "docify": "node docify.js"
   },
