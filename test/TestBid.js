@@ -112,7 +112,7 @@ contract("SealedBidAuction", (accounts) => {
 	/**
 	 * Checking the initial token balances of the seller and the auction contract
 	 */
-	it("Check initiialization", async () => {
+	it("Check initialization", async () => {
 		let sellerBalance = await token.balanceOf(sellerAddress);
 		let auctionBalance = await token.balanceOf(auctionAddress);
 

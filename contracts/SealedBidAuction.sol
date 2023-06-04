@@ -197,7 +197,7 @@ contract SealedBidAuction {
     /**
      * Function starting the auction callable only by the seller before the auction has started
      *
-     * Emits Auctionstarted event
+     * Emits AuctionStarted event
      */
     function startAuction() public onlySeller onlyBeforeAuctionStarted {
         require(
@@ -303,6 +303,8 @@ contract SealedBidAuction {
      * Function callable by the winner after the auction has ended
      * Transfers the amount of tokens specified in the auction
      * Refunds any excess funds to the winner above the exact value of their bid
+     *
+     * Emits AuctionEnded event
      */
     function claimToken() public onlyAfterAuctionEnded {
         require(
